@@ -625,7 +625,7 @@ function drawEcho(){
   uctx.save();
   uctx.beginPath(); uctx.moveTo(cx,cy); uctx.arc(cx, cy, R*sc, Math.PI/2+HALF, Math.PI/2-HALF, true); uctx.closePath(); uctx.clip();
   uctx.fillStyle = "#3a3a3a"; uctx.fillRect(0,0,W,Hh);
-  const hitV = matchView(); let labelQ = null;
+  const hitV = matchView(); let labelQ = null; const liveLabels = [];
   if (hitV && CANON[hitV.id]){
     const G = {
       el(x,y,rx,ry,rot,col){ uctx.beginPath(); uctx.ellipse(X([x*R,y*R]), Y([x*R,y*R]), Math.max(0.5,rx*R*sc), Math.max(0.5,ry*R*sc), rot, 0, Math.PI*2); uctx.fillStyle = col; uctx.fill(); },
@@ -647,7 +647,16 @@ function drawEcho(){
     const pts = section(e, tO, en, dPlane); if (!pts) continue;
     uctx.beginPath(); pts.forEach((p,i) => i ? uctx.lineTo(X(p),Y(p)) : uctx.moveTo(X(p),Y(p))); uctx.closePath();
     uctx.fillStyle = col; uctx.fill();
+    if (LIVE_NAMES[k]){ // remember where each cut structure sits so it can be labeled
+      let ax = 0, ay = 0, A = 0;
+      for (let i=0;i<pts.length;i++){ const [x1,y1] = pts[i], [x2,y2] = pts[(i+1)%pts.length], c = x1*y2 - x2*y1; A += c; ax += (x1+x2)*c; ay += (y1+y2)*c; }
+      if (Math.abs(A) > 1e-4){ ax /= 3*A; ay /= 3*A; const area = Math.abs(A)/2, ang = Math.abs(Math.atan2(ax, ay));
+        if (ay > 0.25 && ay < R*0.95 && ang < HALF*0.92 && area > (k === "liver" ? 0.12 : 0.025)) liveLabels.push([LIVE_NAMES[k], ax, ay]); }
+    }
   }
+  if (liveLabels.length){ const pts = liveLabels.slice(); labelQ = () => {
+    const fs = Math.max(10*dpr, R*sc*0.05); uctx.font = "bold " + fs + "px Arial"; uctx.textAlign = "center"; uctx.textBaseline = "middle"; uctx.lineWidth = fs*0.18;
+    pts.forEach(([t,x,y]) => { uctx.strokeStyle = "rgba(0,0,0,0.85)"; uctx.strokeText(t, X([x,y]), Y([x,y])); uctx.fillStyle = "#fff"; uctx.fillText(t, X([x,y]), Y([x,y])); }); }; }
   // speckle and depth attenuation
   uctx.globalCompositeOperation = "multiply";
   uctx.fillStyle = noisePat; uctx.fillRect(0,0,W,Hh);
@@ -794,8 +803,9 @@ const CANON = (function(){
   };
 })();
 
+const LIVE_NAMES = { lvC:"LV", rvC:"RV", rvotC:"RVOT", laC:"LA", raC:"RA", aoL:"Ao", paL:"PA", daoL:"DAo", ivcL:"IVC", liver:"Liver" };
 const LABELS = {
-  plax:[["RV",0.03,0.19],["LV",-0.27,0.45],["Ao",0.38,0.355],["LA",0.3,0.66],["DAo",0.12,0.93]],
+  plax:[["RV",0.03,0.19],["LV",-0.27,0.45],["Ao",0.27,0.36],["LA",0.3,0.66],["DAo",0.12,0.93]],
   rvit:[["RV",0,0.33],["RA",0.06,0.71],["IVC",-0.27,0.87]],
   rvot:[["RVOT",-0.06,0.2],["PA",0.33,0.56],["RA",-0.2,0.61],["LA",0.06,0.76],["AV",0.02,0.66]],
   psaxpm:[["RV",-0.08,0.24],["LV",0.02,0.47]],
@@ -976,6 +986,7 @@ function loop(now){
   drawEcho();
   const st = clockOf(); if (st !== lastState){ lastState = st; renderState(); }
 }
+{ const st = STEP.plax; Object.assign(S, st.s, { q: st.s.q.clone() }); showStep(st); }
 renderTabs(); renderInfo(); apply();
 window.__trainer = { S, STEPS, apply, syncSliders, setActive };
 requestAnimationFrame(loop);
