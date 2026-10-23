@@ -691,6 +691,17 @@ const CANON = (function(){
     if (open){ g.line([h1,[h1[0]+dir[0]*0.1+(m[0]-h1[0])*0.15, h1[1]+dir[1]*0.1+(m[1]-h1[1])*0.15]],2.5,BR); g.line([h2,[h2[0]+dir[0]*0.1+(m[0]-h2[0])*0.15, h2[1]+dir[1]*0.1+(m[1]-h2[1])*0.15]],2.5,BR); }
     else { g.line([h1,m],2.5,BR); g.line([h2,m],2.5,BR); }
   }
+  // a valve leaflet: smooth curve through control points, thick at the hinge and tapering to the tip
+  function leaf(g, pts, w0, w1){
+    const P = [];
+    for (let i = 0; i < pts.length-1; i++){
+      const a = pts[Math.max(i-1,0)], b = pts[i], c = pts[i+1], d = pts[Math.min(i+2,pts.length-1)];
+      for (let k = 0; k < 6; k++){ const t = k/6, t2 = t*t, t3 = t2*t;
+        P.push([0,1].map(j => 0.5*((2*b[j]) + (-a[j]+c[j])*t + (2*a[j]-5*b[j]+4*c[j]-d[j])*t2 + (-a[j]+3*b[j]-3*c[j]+d[j])*t3))); }
+    }
+    P.push(pts[pts.length-1]);
+    for (let i = 0; i < P.length-1; i++) g.line([P[i],P[i+1]], w0 + (w1-w0)*i/(P.length-2), BR);
+  }
   return {
     plax(g,s){ const c = 1-0.13*s, sys = s > 0.05; near(g);
       g.el(0.03,0.19,0.4,0.085,-0.08,MY); g.el(0.3,0.36,0.22,0.115,-0.12,MY); g.el(0.28,0.63,0.18,0.14,0,MY); g.bul(-0.17,0.45,0.21,0.47,-Math.PI/2-0.1,MY,0.55);
@@ -700,7 +711,14 @@ const CANON = (function(){
       g.el(0.12,0.845,0.05,0.045,0,MY); g.el(0.12,0.845,0.033,0.03,0,BL);
       if (sys){ g.line([[0.16,0.33],[0.3,0.31]],2,BR); g.line([[0.17,0.41],[0.31,0.395]],2,BR); }
       else g.line([[0.19,0.3],[0.215,0.36],[0.2,0.42]],2.5,BR);
-      avv(g,[0.15,0.47],[0.23,0.585],[-0.85,-0.45],!sys);
+      // mitral valve: long anterior leaflet off the aortomitral continuity, short posterior leaflet off the posterior annulus
+      if (sys){ // closed: leaflets meet with a short coaptation zone just on the LV side of the annulus
+        leaf(g,[[0.163,0.445],[0.172,0.48],[0.176,0.508],[0.172,0.52],[0.155,0.516]],3.4,2.2);
+        leaf(g,[[0.23,0.585],[0.21,0.565],[0.19,0.542],[0.176,0.527],[0.157,0.522]],3.4,2.2);
+      } else { // open: anterior tip swings toward the septum, posterior tip toward the inferolateral wall
+        leaf(g,[[0.163,0.445],[0.14,0.447],[0.11,0.44],[0.075,0.424]],3.4,2);
+        leaf(g,[[0.23,0.585],[0.21,0.6],[0.188,0.607],[0.165,0.607]],3.4,2);
+      }
       g.line([[-0.6,0.645],[-0.3,0.66],[0,0.662],[0.12,0.68],[0.16,0.77],[0.26,0.785],[0.42,0.775]],3,BR);
     },
     rvit(g,s){ const c = 1-0.13*s, sys = s > 0.05; near(g);
