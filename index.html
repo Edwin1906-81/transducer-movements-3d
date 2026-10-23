@@ -625,7 +625,7 @@ function drawEcho(){
   uctx.save();
   uctx.beginPath(); uctx.moveTo(cx,cy); uctx.arc(cx, cy, R*sc, Math.PI/2+HALF, Math.PI/2-HALF, true); uctx.closePath(); uctx.clip();
   uctx.fillStyle = "#3a3a3a"; uctx.fillRect(0,0,W,Hh);
-  const hitV = matchView();
+  const hitV = matchView(); let labelQ = null;
   if (hitV && CANON[hitV.id]){
     const G = {
       el(x,y,rx,ry,rot,col){ uctx.beginPath(); uctx.ellipse(X([x*R,y*R]), Y([x*R,y*R]), Math.max(0.5,rx*R*sc), Math.max(0.5,ry*R*sc), rot, 0, Math.PI*2); uctx.fillStyle = col; uctx.fill(); },
@@ -634,9 +634,12 @@ function drawEcho(){
         uctx.ellipse(0,0,a,b*0.62,0,0,Math.PI,false);
         uctx.bezierCurveTo(-a,-b*k,-a*0.35,-b,0,-b); uctx.bezierCurveTo(a*0.35,-b,a,-b*k,a,0);
         uctx.closePath(); uctx.fillStyle = col; uctx.fill(); uctx.restore(); },
+      poly(pts,col){ uctx.beginPath(); pts.forEach((p,i) => { const q = [p[0]*R, p[1]*R]; i ? uctx.lineTo(X(q),Y(q)) : uctx.moveTo(X(q),Y(q)); }); uctx.closePath(); uctx.fillStyle = col; uctx.fill(); },
+      text(x,y,str){ const fs = Math.max(10*dpr, R*sc*0.05); uctx.font = "bold " + fs + "px Arial"; uctx.textAlign = "center"; uctx.textBaseline = "middle"; uctx.lineWidth = fs*0.18; uctx.strokeStyle = "rgba(0,0,0,0.85)"; uctx.strokeText(str, X([x*R,y*R]), Y([x*R,y*R])); uctx.fillStyle = "#ffffff"; uctx.fillText(str, X([x*R,y*R]), Y([x*R,y*R])); },
       line(pts,wd,col){ uctx.beginPath(); pts.forEach((p,i) => { const q = [p[0]*R, p[1]*R]; i ? uctx.lineTo(X(q),Y(q)) : uctx.moveTo(X(q),Y(q)); }); uctx.strokeStyle = col; uctx.lineWidth = wd*(R*sc)/220; uctx.lineCap = uctx.lineJoin = "round"; uctx.stroke(); }
     };
     CANON[hitV.id](G, beat.sys, performance.now()/1000);
+    labelQ = () => (LABELS[hitV.id] || []).forEach(([t,x,y]) => G.text(x,y,t));
   } else for (const [k,col] of DRAW){
     const e = H[k];
     if (e.valve === "av" && beat.sys < 0.05) continue;   // AV valves open in diastole
@@ -651,6 +654,7 @@ function drawEcho(){
   const g = uctx.createRadialGradient(cx,cy,R*sc*0.15,cx,cy,R*sc);
   g.addColorStop(0,"#ffffff"); g.addColorStop(1,"#6a6a6a"); uctx.fillStyle = g; uctx.fillRect(0,0,W,Hh);
   uctx.globalCompositeOperation = "source-over";
+  if (labelQ) labelQ();
   // near-field skin/chest wall band
   uctx.fillStyle = "rgba(200,200,200,0.18)"; uctx.beginPath(); uctx.arc(cx,cy,0.28*sc,0,Math.PI*2); uctx.fill();
   uctx.restore();
@@ -682,8 +686,8 @@ const CANON = (function(){
     plax(g,s){ const c = 1-0.13*s, sys = s > 0.05; near(g);
       g.el(0.03,0.19,0.4,0.085,-0.08,MY); g.el(0.3,0.36,0.22,0.115,-0.12,MY); g.el(0.28,0.63,0.18,0.14,0,MY); g.bul(-0.17,0.45,0.21,0.47,-Math.PI/2-0.1,MY,0.55);
       g.el(0.03,0.19,0.33,0.045*c,-0.08,BL); g.el(0.31,0.36,0.23,0.072,-0.12,BL); g.el(0.28,0.635,0.145,0.11,0,BL); g.bul(-0.14,0.45,0.125*c,0.37*c,-Math.PI/2-0.1,BL,0.55);
-      g.el(0.1,0.41,0.075,0.05,-0.35,BL);            // LVOT opening into the aortic root
-      g.el(0.17,0.55,0.075,0.045,0.75,BL);           // mitral orifice between LA and LV
+      g.poly([[0.03,0.37],[0.12,0.33],[0.17,0.42],[0.07,0.5]],BL);   // LVOT into the aortic root
+      g.poly([[0.07,0.47],[0.15,0.44],[0.26,0.56],[0.15,0.62]],BL); // mitral inflow LA to LV
       g.el(0.12,0.845,0.05,0.045,0,MY); g.el(0.12,0.845,0.033,0.03,0,BL);
       if (sys){ g.line([[0.16,0.33],[0.3,0.31]],2,BR); g.line([[0.17,0.41],[0.31,0.395]],2,BR); }
       else g.line([[0.19,0.3],[0.215,0.36],[0.2,0.42]],2.5,BR);
@@ -693,7 +697,7 @@ const CANON = (function(){
     rvit(g,s){ const c = 1-0.13*s, sys = s > 0.05; near(g);
       g.el(0,0.33,0.32,0.2,0.25,MY); g.el(0.05,0.68,0.22,0.15,0.1,MY); g.el(-0.2,0.8,0.12,0.05,0.6,"#9a9a9a");
       g.el(0,0.33,0.25*c,0.14*c,0.25,BL); g.el(0.05,0.68,0.18,0.12,0.1,BL);
-      g.el(0.03,0.52,0.13,0.05,0.1,BL);              // tricuspid orifice
+      g.poly([[-0.1,0.45],[0.16,0.45],[0.17,0.6],[-0.1,0.6]],BL);  // RA to RV through the tricuspid valve
       g.el(-0.2,0.8,0.1,0.032,0.6,BL); g.el(0.21,0.78,0.03,0.025,0,BL);
       avv(g,[-0.11,0.53],[0.17,0.52],[-0.25,-0.97],!sys);
     },
@@ -724,7 +728,7 @@ const CANON = (function(){
       g.el(0,0.48,0.12,0.12,0,MY);
       g.el(-0.24,0.62,0.12,0.1,0,BL); g.el(0.06,0.735,0.15,0.075,0,BL);
       tubeL(g,tract,0.095); tubeL(g,pa,0.085);
-      g.el(-0.27,0.515,0.055,0.045,0.4,BL);         // tricuspid orifice RA to RV inflow
+      g.poly([[-0.33,0.44],[-0.21,0.44],[-0.2,0.58],[-0.32,0.58]],BL); // RA to RV through the tricuspid valve
       g.el(0,0.48,0.095,0.095,0,BL);
       if (sys){ g.line([[0,0.415],[0.06,0.51],[-0.06,0.51],[0,0.415]],2,BR); g.line([[0.235,0.34],[0.26,0.44]],2,BR); g.line([[0.32,0.36],[0.335,0.45]],2,BR); }
       else { g.line([[0,0.48],[0,0.385]],2,BR); g.line([[0,0.48],[-0.082,0.527]],2,BR); g.line([[0,0.48],[0.082,0.527]],2,BR); g.line([[0.225,0.39],[0.28,0.4],[0.325,0.37]],2.5,BR); }
@@ -733,14 +737,14 @@ const CANON = (function(){
     a4c(g,s){ const c = 1-0.12*s, sys = s > 0.05;
       g.bul(0.12,0.44,0.2,0.36,-0.12,MY); g.bul(-0.14,0.47,0.16,0.3,0.18,MY,0.6); g.el(0.13,0.82,0.15,0.13,0,MY); g.el(-0.16,0.82,0.14,0.13,0,MY);
       g.bul(-0.15,0.49,0.11*c,0.24*c,0.18,BL,0.6); g.bul(0.13,0.45,0.13*c,0.3*c,-0.12,BL); g.el(0.14,0.83,0.12,0.1,0,BL); g.el(-0.17,0.83,0.11,0.1,0,BL);
-      g.el(0.135,0.71,0.115,0.095,0,BL); g.el(-0.165,0.705,0.105,0.095,0,BL);   // mitral and tricuspid orifices
+      g.poly([[0.045,0.6],[0.225,0.6],[0.24,0.79],[0.04,0.79]],BL); g.poly([[-0.245,0.6],[-0.075,0.6],[-0.07,0.79],[-0.265,0.79]],BL); // mitral and tricuspid inflow
       avv(g,[0.04,0.68],[0.23,0.68],[0,-1],!sys); avv(g,[-0.25,0.665],[-0.075,0.665],[0,-1],!sys);
       g.line([[0.14,0.07],[0.3,0.2],[0.34,0.42],[0.33,0.62]],2.5,BR);
     },
     a5c(g,s){ const c = 1-0.12*s, sys = s > 0.05;
       g.bul(0.12,0.44,0.2,0.36,-0.12,MY); g.bul(-0.14,0.47,0.16,0.3,0.18,MY,0.6); g.el(0.2,0.86,0.12,0.1,0,MY); g.el(-0.21,0.86,0.11,0.1,0,MY); g.el(0.02,0.77,0.075,0.16,0.08,"#b0b0b0");
       g.bul(-0.15,0.49,0.11*c,0.24*c,0.18,BL,0.6); g.bul(0.13,0.45,0.13*c,0.3*c,-0.12,BL); g.el(0.21,0.87,0.09,0.075,0,BL); g.el(-0.21,0.87,0.085,0.075,0,BL); g.el(0.02,0.77,0.048,0.15,0.08,BL);
-      g.el(0.19,0.75,0.085,0.1,0,BL); g.el(-0.2,0.75,0.08,0.1,0,BL); g.el(0.02,0.64,0.06,0.04,0,BL);
+      g.poly([[0.125,0.6],[0.255,0.6],[0.265,0.83],[0.13,0.83]],BL); g.poly([[-0.255,0.6],[-0.115,0.6],[-0.13,0.83],[-0.275,0.83]],BL); g.poly([[-0.03,0.6],[0.08,0.6],[0.07,0.68],[-0.03,0.68]],BL);
       avv(g,[0.12,0.7],[0.26,0.71],[0,-1],!sys); avv(g,[-0.26,0.7],[-0.11,0.69],[0,-1],!sys);
       if (sys){ g.line([[-0.02,0.63],[-0.025,0.7]],2,BR); g.line([[0.06,0.63],[0.065,0.7]],2,BR); }
       else g.line([[-0.025,0.645],[0.02,0.66],[0.065,0.645]],2.5,BR);
@@ -748,19 +752,19 @@ const CANON = (function(){
     rvf(g,s){ const c = 1-0.12*s, sys = s > 0.05;
       g.bul(-0.12,0.49,0.22,0.33,0.12,MY,0.6); g.bul(0.2,0.43,0.15,0.34,-0.15,MY); g.el(-0.14,0.83,0.17,0.13,0,MY); g.el(0.2,0.84,0.11,0.1,0,MY);
       g.bul(-0.13,0.51,0.16*c,0.27*c,0.12,BL,0.6); g.bul(0.21,0.45,0.09*c,0.28*c,-0.15,BL); g.el(-0.14,0.84,0.14,0.105,0,BL); g.el(0.2,0.85,0.085,0.075,0,BL);
-      g.el(-0.14,0.71,0.135,0.095,0,BL); g.el(0.2,0.72,0.08,0.095,0,BL);
+      g.poly([[-0.265,0.62],[-0.015,0.62],[-0.03,0.8],[-0.255,0.8]],BL); g.poly([[0.135,0.6],[0.265,0.6],[0.26,0.81],[0.14,0.81]],BL);
       avv(g,[-0.27,0.68],[-0.01,0.69],[0,-1],!sys); avv(g,[0.13,0.69],[0.27,0.69],[0,-1],!sys);
     },
     a2c(g,s){ const c = 1-0.12*s, sys = s > 0.05;
       g.bul(0.02,0.46,0.2,0.37,0,MY); g.el(0.02,0.84,0.16,0.12,0,MY); g.el(0.18,0.74,0.055,0.04,0.6,MY);
       g.bul(0.02,0.47,0.13*c,0.31*c,0,BL); g.el(0.02,0.85,0.13,0.095,0,BL); g.el(0.18,0.74,0.035,0.022,0.6,BL);
-      g.el(0.02,0.73,0.12,0.095,0,BL);
+      g.poly([[-0.085,0.62],[0.125,0.62],[0.12,0.8],[-0.08,0.8]],BL);
       avv(g,[-0.09,0.71],[0.13,0.71],[0,-1],!sys);
     },
     a3c(g,s){ const c = 1-0.12*s, sys = s > 0.05;
       g.bul(0,0.46,0.2,0.37,0.08,MY); g.el(-0.1,0.85,0.14,0.11,0,MY); g.el(0.16,0.8,0.075,0.17,-0.35,"#b0b0b0");
       g.bul(0,0.47,0.13*c,0.31*c,0.08,BL); g.el(-0.1,0.86,0.11,0.085,0,BL); g.el(0.16,0.8,0.048,0.16,-0.35,BL);
-      g.el(-0.08,0.75,0.1,0.095,0,BL); g.el(0.1,0.67,0.05,0.045,-0.35,BL);
+      g.poly([[-0.165,0.62],[0.015,0.62],[0.0,0.81],[-0.17,0.81]],BL); g.poly([[0.03,0.6],[0.12,0.62],[0.15,0.72],[0.06,0.74]],BL);
       avv(g,[-0.17,0.73],[0.02,0.71],[0.1,-1],!sys);
       if (sys){ g.line([[0.07,0.65],[0.11,0.72]],2,BR); g.line([[0.13,0.63],[0.17,0.7]],2,BR); }
       else g.line([[0.075,0.665],[0.11,0.68],[0.15,0.655]],2.5,BR);
@@ -769,7 +773,7 @@ const CANON = (function(){
       g.el(-0.25,0.14,0.45,0.22,0.25,LIV);
       g.el(0.02,0.42,0.33,0.1,0.45,MY); g.el(-0.25,0.57,0.14,0.11,0.45,MY); g.el(-0.12,0.73,0.14,0.1,0.45,MY); g.bul(0.12,0.58,0.16,0.34,0.45+Math.PI/2,MY);
       g.el(0.02,0.42,0.27,0.05*c,0.45,BL); g.el(-0.25,0.57,0.11,0.085,0.45,BL); g.el(-0.12,0.73,0.11,0.075,0.45,BL); g.bul(0.1,0.585,0.09*c,0.26*c,0.45+Math.PI/2,BL);
-      g.el(-0.15,0.5,0.06,0.045,0.45,BL); g.el(-0.02,0.665,0.06,0.045,0.45,BL);
+      g.poly([[-0.23,0.47],[-0.12,0.42],[-0.07,0.53],[-0.18,0.58]],BL); g.poly([[-0.09,0.63],[0.0,0.59],[0.05,0.7],[-0.04,0.74]],BL);
       g.line([[-0.3,0.37],[-0.05,0.31],[0.2,0.38],[0.38,0.52]],3,BR);
       avv(g,[-0.19,0.45],[-0.1,0.54],[0.9,-0.1],!sys); avv(g,[-0.06,0.62],[0.03,0.71],[0.9,-0.2],!sys);
     },
@@ -789,6 +793,22 @@ const CANON = (function(){
     }
   };
 })();
+
+const LABELS = {
+  plax:[["RV",0.03,0.19],["LV",-0.27,0.45],["Ao",0.38,0.355],["LA",0.3,0.66],["DAo",0.12,0.93]],
+  rvit:[["RV",0,0.33],["RA",0.06,0.71],["IVC",-0.27,0.87]],
+  rvot:[["RVOT",-0.06,0.2],["PA",0.33,0.56],["RA",-0.2,0.61],["LA",0.06,0.76],["AV",0.02,0.66]],
+  psaxpm:[["RV",-0.08,0.24],["LV",0.02,0.47]],
+  psaxav:[["RVOT",-0.05,0.21],["RA",-0.24,0.64],["LA",0.06,0.75],["PA",0.31,0.53],["AV",0.15,0.5]],
+  a4c:[["LV",0.13,0.42],["RV",-0.15,0.47],["LA",0.14,0.85],["RA",-0.17,0.85]],
+  a5c:[["LV",0.13,0.42],["RV",-0.15,0.47],["LA",0.21,0.89],["RA",-0.21,0.89],["Ao",0.02,0.82]],
+  rvf:[["RV",-0.13,0.48],["LV",0.21,0.42],["RA",-0.14,0.86],["LA",0.2,0.87]],
+  a2c:[["LV",0.02,0.45],["LA",0.02,0.87],["LAA",0.26,0.74]],
+  a3c:[["LV",0,0.45],["LA",-0.1,0.88],["Ao",0.19,0.86]],
+  sc4:[["Liver",-0.04,0.21],["RV",0.05,0.42],["LV",0.2,0.6],["RA",-0.27,0.58],["LA",-0.12,0.75]],
+  scsax:[["Liver",0.0,0.16],["RV",-0.1,0.44],["LV",0.06,0.63]],
+  ivc:[["Liver",-0.28,0.24],["IVC",-0.12,0.53],["RA",0.23,0.33],["HV",-0.15,0.29]]
+};
 /* =====================================================================
    Heart beat
 ===================================================================== */
